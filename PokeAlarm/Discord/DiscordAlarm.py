@@ -46,6 +46,15 @@ class DiscordAlarm(Alarm):
             'title': "A Team <old_team> gym has fallen!",
             'url': "<gmaps>",
             'body': "It is now controlled by <new_team>."
+        },
+        'raid': {
+            'username': "",
+            'content': "",
+            'icon_url': "",
+            'avatar_url': "",
+            'title': "",
+            'url': "<gmaps>",
+            'body': ""
         }
     }
 
@@ -66,6 +75,7 @@ class DiscordAlarm(Alarm):
         self.__pokemon = self.create_alert_settings(settings.pop('pokemon', {}), self._defaults['pokemon'])
         self.__pokestop = self.create_alert_settings(settings.pop('pokestop', {}), self._defaults['pokestop'])
         self.__gym = self.create_alert_settings(settings.pop('gym', {}), self._defaults['gym'])
+        self.__raid = self.create_alert_settings(settings.pop('raid', {}), self._defaults['raid'])
 
         # Warn user about leftover parameters
         reject_leftover_parameters(settings, "'Alarm level in Discord alarm.")
@@ -140,10 +150,15 @@ class DiscordAlarm(Alarm):
         log.debug("Pokestop notification triggered.")
         self.send_alert(self.__pokestop, pokestop_info)
 
-    # Trigger an alert based on Pokestop info
+    # Trigger an alert based on Gym info
     def gym_alert(self, gym_info):
         log.debug("Gym notification triggered.")
         self.send_alert(self.__gym, gym_info)
+
+    # Trigger an alert based on Raid info
+    def raid_alert(self, raid_info):
+        log.debug("Raid notification triggered.")
+        self.send_alert(self.__raid, raid_info)
 
     def send_webhook(self, url, payload):
         log.debug(payload)
