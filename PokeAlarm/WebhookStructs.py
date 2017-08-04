@@ -5,7 +5,7 @@ import traceback
 # 3rd Party Imports
 # Local Imports
 from Utils import get_gmaps_link, get_move_damage, get_move_dps, get_move_duration,\
-    get_move_energy, get_pokemon_gender, get_pokemon_size, get_applemaps_link
+    get_move_energy, get_pokemon_gender, get_pokemon_size, get_applemaps_link, get_pkmn_name
 
 log = logging.getLogger('WebhookStructs')
 
@@ -26,14 +26,17 @@ class RocketMap:
                 return RocketMap.pokemon(data.get('message'))
             elif kind == 'pokestop':
                 return RocketMap.pokestop(data.get('message'))
-            elif kind == 'gym' or kind == 'gym_details':
-                return RocketMap.gym(data.get('message'))
+            #elif kind == 'gym':
+                #log.debug('I AINT DOIN NOTHING ABOUT REGULAR GYM POSTS')
+                #return RocketMap.gym(data.get('message'))
+            elif kind == 'gym_details':
+                return RocketMap.gym_details(data.get('message'))
             elif kind == 'raid':
                 return RocketMap.raid(data.get('message'))
             elif kind in ['captcha', 'scheduler']:  # Unsupported Webhooks
                 log.debug("{} webhook received. This webhooks is not yet supported at this time.".format({kind}))
-            else:
-                log.error("Invalid type specified ({}). Are you using the correct map type?".format(kind))
+            #else:
+                #log.error("Invalid type specified ({}). Are you using the correct map type?".format(kind))
         except Exception as e:
             log.error("Encountered error while processing webhook ({}: {})".format(type(e).__name__, e))
             log.debug("Stack trace: \n {}".format(traceback.format_exc()))
@@ -120,7 +123,11 @@ class RocketMap:
             'id': data['pokestop_id'],
             'expire_time':  datetime.utcfromtimestamp(data['lure_expiration']),
             'lat': float(data['latitude']),
-            'lng': float(data['longitude'])
+            'lng': float(data['longitude']),
+            'name': check_for_none(str, data.get('name'), '?'),
+            'description': check_for_none(str, data.get('description'), '?'),
+            'lurl': check_for_none(str, data.get('url'), ''),
+            'deployer': check_for_none(str, data.get('deployer'), '?')
         }
         stop['gmaps'] = get_gmaps_link(stop['lat'], stop['lng'])
         stop['applemaps'] = get_applemaps_link(stop['lat'], stop['lng'])
@@ -134,7 +141,7 @@ class RocketMap:
             'id': data.get('gym_id',  data.get('id')),
             "team_id": int(data.get('team_id',  data.get('team'))),
             "points": str(data.get('gym_points')),
-            "guard_pkmn_id": data.get('guard_pokemon_id'),
+            "guard_pkmn_id": get_pkmn_name(check_for_none(int, data.get('guard_pokemon_id'), '?')),
             'lat': float(data['latitude']),
             'lng': float(data['longitude'])
         }
@@ -145,11 +152,16 @@ class RocketMap:
     @staticmethod
     def raid(data):
         log.debug("Converting to raid: \n {}".format(data))
+        quick_id = check_for_none(int, data.get('move_1'), '?')
+        charge_id = check_for_none(int, data.get('move_2'), '?')
         raid = {
             'type': "raid", 
-            'id': data.get('gym_id'), 
+            'id': data.get('gym_id'),
+            'team_id': int(data.get('team_id',  data.get('team'))),
             'pkmn_id': check_for_none(int, data.get('pokemon_id'), '?'), 
             'pkmn_cp': check_for_none(int, data.get('cp'), '?'),
+            'quick_id': quick_id,
+            'charge_id': charge_id,
             'lat': float(data['latitude']),
             'lng': float(data['longitude']),
             'level': data.get('level'),
@@ -160,6 +172,45 @@ class RocketMap:
         raid['gmaps'] = get_gmaps_link(raid['lat'], raid['lng'])
         raid['applemaps'] = get_applemaps_link(raid['lat'], raid['lng'])
         return raid
+
+    @staticmethod
+    def gym_details(data):
+        log.info("Converting to gym-details: \n {}".format(data))
+        defenders = ""
+        for pokemon in data.get('pokemon'):
+            defenders += "[{0} CP: {1}/{2}] [Trainer: {3} Lv: {4}]\n".format(get_pkmn_name(pokemon['pokemon_id']), pokemon['cp_decayed'], pokemon['cp'], pokemon['trainer_name'], pokemon['trainer_level'])
+        gym_details = {
+            'type': "gym",
+            'id': data.get('gym_id',  data.get('id')),
+            'team_id': int(data.get('team_id',  data.get('team'))),
+            'points': str(data.get('total_cp')),
+            'guard_pkmn_id': get_pkmn_name(check_for_none(int, data.get('guard_pokemon_id'), '?')),
+            'slots_available': check_for_none(int, data.get('slots_available'), '?'),
+            'is_in_battle': check_for_none(int, data.get('is_in_battle'), '?'),
+            'defenders': defenders,
+            'lat': float(data['latitude']),
+            'lng': float(data['longitude']),
+            'name': check_for_none(str, data.get('name'), '?'),
+            'description': check_for_none(str, data.get('description'), '?'),
+            'gurl': check_for_none(str, data.get('url'), '')
+        }
+        #log.warning(gym_details['guard_pkmn_id'])
+        # log.warning("PARSED GYM INFORMATION: \n {}".format(gym_details))
+        gym_details['gmaps'] = get_gmaps_link(gym_details['lat'], gym_details['lng'])
+        gym_details['applemaps'] = get_applemaps_link(gym_details['lat'], gym_details['lng'])
+
+        if gym_details['is_in_battle'] == 1:
+            gym_details['is_in_battle'] = '[IN BATTLE]'
+        else:
+            gym_details['is_in_battle'] = ''
+
+        return gym_details
+
+    @staticmethod
+    def location(data):
+        data['type'] = 'location'
+        data['id'] = str(uuid.uuid4())
+        return data
 
 # Ensure that the value isn't None but replacing with a default
 def check_for_none(type_, val, default):
