@@ -44,7 +44,7 @@ class RocketMap:
 
     @staticmethod
     def pokemon(data):
-        log.debug("Converting to pokemon: \n {}".format(data))
+        #log.info("Converting to pokemon: \n {}".format(data))
         # Get some stuff ahead of time (cause we are lazy)
         quick_id = check_for_none(int, data.get('move_1'), '?')
         charge_id = check_for_none(int, data.get('move_2'), '?')
@@ -73,15 +73,22 @@ class RocketMap:
             'charge_dps': get_move_dps(charge_id),
             'charge_duration': get_move_duration(charge_id),
             'charge_energy': get_move_energy(charge_id),
-            'height': check_for_none(float, data.get('height'), 'unkn'),
-            'weight': check_for_none(float, data.get('weight'), 'unkn'),
+            'height': check_for_none(float, data.get('height'), '?'),
+            'weight': check_for_none(float, data.get('weight'), '?'),
             'gender': get_pokemon_gender(check_for_none(int, data.get('gender'), '?')),
-            'size': 'unknown',
+            'size': '?',
             'tiny_rat': '',
             'big_karp': '',
             'gmaps': get_gmaps_link(lat, lng),
             'applemaps': get_applemaps_link(lat, lng),
             'allstats': '',
+            'rating_attack': data.get('rating_attack'),
+            'rating_defense': data.get('rating_defense'),
+            'worker_level': check_for_none(int, data.get('worker_level'), '?'),
+            'catch_prob_1': check_for_none(float, data.get('catch_prob_1'), '?'),
+            'catch_prob_2': check_for_none(float, data.get('catch_prob_2'), '?'),
+            'catch_prob_3': check_for_none(float, data.get('catch_prob_3'), '?'),
+            'previous_id': check_for_none(int, data.get('previous_id'), ''),
         }
         if pkmn['atk'] != '?' or pkmn['def'] != '?' or pkmn['sta'] != '?':
             pkmn['iv'] = float(((pkmn['atk'] + pkmn['def'] + pkmn['sta']) * 100) / float(45))
@@ -99,16 +106,42 @@ class RocketMap:
 
         pkmn['allstats'] += ' '
 
-        if pkmn['height'] != 'unkn' or pkmn['weight'] != 'unkn':
+        if pkmn['height'] != '?' or pkmn['weight'] != '?':
             pkmn['size'] = get_pokemon_size(pkmn['pkmn_id'], pkmn['height'], pkmn['weight'])
             pkmn['height'] = "{:.2f}".format(pkmn['height'])
             pkmn['weight'] = "{:.2f}".format(pkmn['weight'])
 
         if pkmn['pkmn_id'] == 19 and pkmn['size'] == 'tiny':
-            pkmn['tiny_rat'] = 'tiny'
+            pkmn['tiny_rat'] = 'Tiny'
 
         if pkmn['pkmn_id'] == 129 and pkmn['size'] == 'big':
-            pkmn['big_karp'] = 'big'
+            pkmn['big_karp'] = 'Big'
+
+        rating_attack = pkmn['rating_attack']
+        pkmn['rating_attack'] = rating_attack.upper() if rating_attack else '-'
+        rating_defense = pkmn['rating_defense']
+        pkmn['rating_defense'] = rating_defense.upper() if rating_defense else '-'
+
+        if pkmn['catch_prob_1'] > 0:
+            pkmn['catch_prob_1'] = pkmn['catch_prob_1'] * 100
+            pkmn['catch_prob_1'] = int(round(pkmn['catch_prob_1'], 2))
+        else:
+            pkmn['catch_prob_1'] = ''
+
+        if pkmn['catch_prob_2'] > 0:
+            pkmn['catch_prob_2'] = pkmn['catch_prob_2'] * 100
+            pkmn['catch_prob_2'] = int(round(pkmn['catch_prob_2'], 2))
+        else:
+            pkmn['catch_prob_2'] = ''
+
+        if pkmn['catch_prob_3'] > 0:
+            pkmn['catch_prob_3'] = pkmn['catch_prob_3'] * 100
+            pkmn['catch_prob_3'] = int(round(pkmn['catch_prob_3'], 2))
+        else:
+            pkmn['catch_prob_3'] = ''
+
+        if pkmn['previous_id']:
+            pkmn['previous_id'] = '(' + get_pkmn_name(int(pkmn['previous_id'])) + ')'
 
         return pkmn
 
@@ -155,10 +188,10 @@ class RocketMap:
         quick_id = check_for_none(int, data.get('move_1'), '?')
         charge_id = check_for_none(int, data.get('move_2'), '?')
         raid = {
-            'type': "raid", 
+            'type': "raid",
             'id': data.get('gym_id'),
             'team_id': int(data.get('team_id',  data.get('team'))),
-            'pkmn_id': check_for_none(int, data.get('pokemon_id'), '?'), 
+            'pkmn_id': check_for_none(int, data.get('pokemon_id'), '?'),
             'pkmn_cp': check_for_none(int, data.get('cp'), '?'),
             'quick_id': quick_id,
             'charge_id': charge_id,
@@ -175,7 +208,7 @@ class RocketMap:
 
     @staticmethod
     def gym_details(data):
-        log.info("Converting to gym-details: \n {}".format(data))
+        log.debug("Converting to gym-details: \n {}".format(data))
         defenders = ""
         for pokemon in data.get('pokemon'):
             defenders += "[{0} CP: {1}/{2}] [Trainer: {3} Lv: {4}]\n".format(get_pkmn_name(pokemon['pokemon_id']), pokemon['cp_decayed'], pokemon['cp'], pokemon['trainer_name'], pokemon['trainer_level'])

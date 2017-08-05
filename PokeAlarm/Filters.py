@@ -123,13 +123,13 @@ def load_gym_section(settings):
     if gym['enabled'] is False:
         log.info("Gym notifications will NOT be sent. - Enabled is False  ")
     return gym
-    
+
 def load_raid_section(settings):
     log.info("Setting Raid filters...")
     # Set the defaults for "True"
     # Override defaults using a new Filter to verify inputs
     default_filt = RaidFilter(settings.pop('default', {}), {
-        "min_dist": 0.0, "max_dist": float('inf'), 
+        "min_dist": 0.0, "max_dist": float('inf'),
         "min_level": 0, "max_level": 5,
     }, 'default')
     default = default_filt.to_dict()
@@ -192,6 +192,11 @@ class PokemonFilter(Filter):
         self.req_quick_move = PokemonFilter.create_moves_list(settings.pop("quick_move", default['quick_move']))
         self.req_charge_move = PokemonFilter.create_moves_list(settings.pop("charge_move", default['charge_move']))
         self.req_moveset = PokemonFilter.create_moveset_list(settings.pop("moveset",  default['moveset']))
+        # Moveset Ratings
+        self.min_rating_attack = (settings.pop('min_rating_attack', None) or default['min_rating_attack']).upper()
+        self.max_rating_attack = (settings.pop('max_rating_attack', None) or default['max_rating_attack']).upper()
+        self.min_rating_defense = (settings.pop('min_rating_defense', None) or default['min_rating_defense']).upper()
+        self.max_rating_defense = (settings.pop('max_rating_defense', None) or default['max_rating_defense']).upper()
 
         reject_leftover_parameters(settings, "pokemon filter under '{}'".format(location))
 
@@ -256,6 +261,12 @@ class PokemonFilter(Filter):
             return True
         return gender in self.genders
 
+    def check_rating_attack(self, rating_attack):
+        return self.min_rating_attack >= rating_attack >= self.max_rating_attack
+
+    def check_rating_defense(self, rating_defense):
+        return self.min_rating_defense >= rating_defense >= self.max_rating_defense
+
     # Convert this filter to a dict
     def to_dict(self):
         return {
@@ -270,7 +281,11 @@ class PokemonFilter(Filter):
             "moveset": self.req_moveset,
             "size": self.sizes,
             "gender": self.genders,
-            "ignore_missing": self.ignore_missing
+            "ignore_missing": self.ignore_missing,
+            "min_rating_attack": self.min_rating_attack,
+            "max_rating_attack": self.max_rating_attack,
+            "min_rating_defense": self.min_rating_defense,
+            "max_rating_defense": self.max_rating_defense,
         }
 
     # Print this filter
@@ -287,7 +302,9 @@ class PokemonFilter(Filter):
                "Move Sets: {}, ".format(self.req_moveset)  +\
                "Sizes: {}, ".format(self.sizes) + \
                "Genders: {}, ".format(self.genders) + \
-               "Ignore Missing: {} ".format(self.ignore_missing)
+               "Ignore Missing: {} ".format(self.ignore_missing) + \
+               "Rating Atk: {} to {}".format(self.min_rating_attack, self.max_rating_attack) + \
+               "Rating Def: {} to {}".format(self.min_rating_defense, self.max_rating_defense)
 
     @staticmethod
     def create_moves_list(moves):
@@ -427,14 +444,14 @@ class GymFilter(Filter):
                           + "Please see documentation for accepted team names and correct your Filters file.")
                 sys.exit(1)
         return s
-        
+
 #  Used to determine when Raid notifications will be triggered.
 class RaidFilter(Filter):
 
     def __init__(self, settings, default, location):
         self.min_dist = float(settings.pop('min_dist', None) or default['min_dist'])
         self.max_dist = float(settings.pop('max_dist', None) or default['max_dist'])
-        
+
         # Level
         self.min_level = int(settings.pop('min_level', None) or default['min_level'])
         self.max_level = int(settings.pop('max_level', None) or default['max_level'])
@@ -444,7 +461,7 @@ class RaidFilter(Filter):
     # Checks the given distance against this filter
     def check_dist(self, dist):
         return self.min_dist <= dist <= self.max_dist
-        
+
     # Checks the Level against this filter
     def check_level(self, level):
         return self.min_level <= level <= self.max_level
